@@ -1,0 +1,11 @@
+---
+# Arbitrarily chosen to juggle value and annoyingness. Feel free to change.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  google-*,
+  performance-*
+
+# Turn all the warnings from the checks above into errors.
+WarningsAsErrors: "*"

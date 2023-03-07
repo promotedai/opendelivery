@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        // These require the https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb extension.
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Launch main",
+            "program": "${workspaceFolder}/build/main",
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "attach",
+            "name": "Attach to main",
+            "program": "${workspaceFolder}/build/main"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Launch test",
+            "program": "${workspaceFolder}/build/<path to test>",
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
