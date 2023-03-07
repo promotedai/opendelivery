@@ -1,0 +1,19 @@
+{
+    "platformId": 121,
+    "region": "us-east-1",
+    "name": "b",
+    "executionConfig": {
+        "stages": [
+            {
+                "type": "Init",
+                "id": 0,
+                "inputIds": []
+            },
+            {
+                "type": "Respond",
+                "id": 1,
+                "inputIds": [0]
+            }
+        ]
+    }
+}

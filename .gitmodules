@@ -1,0 +1,27 @@
+[submodule "submodules/drogon"]
+	path = submodules/drogon
+	url = git@github.com:drogonframework/drogon.git
+[submodule "submodules/schema-internal"]
+	path = submodules/schema-internal
+	url = git@github.com:promotedai/schema-internal.git
+[submodule "submodules/aws-sdk-cpp"]
+	path = submodules/aws-sdk-cpp
+	url = git@github.com:aws/aws-sdk-cpp.git
+[submodule "submodules/thread-safe-lru"]
+	path = submodules/thread-safe-lru
+	url = git@github.com:tstarling/thread-safe-lru.git
+[submodule "submodules/modern-cpp-kafka"]
+	path = submodules/modern-cpp-kafka
+	url = git@github.com:morganstanley/modern-cpp-kafka.git
+[submodule "submodules/hashlib-cpp"]
+	path = submodules/hashlib-cpp
+	url = git@github.com:promotedai/hashlib-cpp.git
+[submodule "submodules/uap-cpp"]
+	path = submodules/uap-cpp
+	url = git@github.com:ua-parser/uap-cpp.git
+[submodule "submodules/redis-plus-plus"]
+	path = submodules/redis-plus-plus
+	url = git@github.com:sewenew/redis-plus-plus.git
+[submodule "submodules/hiredis"]
+	path = submodules/hiredis
+	url = git@github.com:redis/hiredis.git

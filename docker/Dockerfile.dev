@@ -1,0 +1,137 @@
+FROM ubuntu:jammy
+
+ARG LLVM
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+ARG LLVM_MAJOR_VERSION=15
+ARG CMAKE_VERSION=3.25.2-0kitware1ubuntu22.04.1
+ARG PROTOBUF_VERSION=3.15.3
+ARG XGBOOST_VERSION=1.5.2
+ARG AWS_SDK_VERSION=1.10.57
+ARG HIREDIS_VERSION=1.1.0
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Default dependencies
+RUN apt-get -y update \
+    && DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends \
+       curl gpg git make openssh-client software-properties-common sudo wget unzip
+
+# Create the user and the home folder
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Install .NET Runtime (required by josetr.cmake-language-support-vscode plugin)
+RUN wget https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+RUN dpkg -i packages-microsoft-prod.deb
+RUN rm packages-microsoft-prod.deb
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+     && apt-get -y install --no-install-recommends dotnet-sdk-6.0
+
+# Install CMake
+RUN wget -qO - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+RUN add-apt-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -y install --no-install-recommends \
+       cmake=${CMAKE_VERSION}
+
+# Install LLVM. LLVM developers have a strange approach to providing the packages. They remove the previous minor
+# release when a new one is available. It may create problems with reproducability, which we will need to address
+# if devcontainer approach takes off.
+RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+RUN add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-${LLVM_MAJOR_VERSION} main"
+
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -y install --no-install-recommends \
+       clang-${LLVM_MAJOR_VERSION} clang-tools-${LLVM_MAJOR_VERSION} libclang-common-${LLVM_MAJOR_VERSION}-dev libclang-${LLVM_MAJOR_VERSION}-dev \
+       libllvm${LLVM_MAJOR_VERSION} libmlir-${LLVM_MAJOR_VERSION}-dev mlir-${LLVM_MAJOR_VERSION}-tools llvm-${LLVM_MAJOR_VERSION} llvm-${LLVM_MAJOR_VERSION}-dev \
+       libomp-${LLVM_MAJOR_VERSION}-dev clangd-${LLVM_MAJOR_VERSION} clang-format-${LLVM_MAJOR_VERSION} clang-tidy-${LLVM_MAJOR_VERSION}
+
+RUN ln -s /usr/bin/FileCheck-${LLVM_MAJOR_VERSION} /usr/bin/FileCheck
+RUN update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-${LLVM_MAJOR_VERSION} 100 && \
+    update-alternatives --install /usr/bin/cc cc /usr/bin/clang-${LLVM_MAJOR_VERSION} 100 && \
+    update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-${LLVM_MAJOR_VERSION} 100 && \
+    update-alternatives --install /usr/bin/clang-tidy clang-tify /usr/bin/clang-tidy-${LLVM_MAJOR_VERSION} 100
+
+# Protobuf
+RUN wget -qO - https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-cpp-${PROTOBUF_VERSION}.tar.gz | \
+    tar -xz -C /tmp && \
+    cd /tmp/protobuf-${PROTOBUF_VERSION} && \
+    ./configure && make -j $(nproc) && make install && \
+    cd - && rm -rf /tmp/protobuf-${PROTOBUF_VERSION}
+
+# Rest of app dependencies
+
+# Hiredis
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -y install --no-install-recommends \
+    libuv1-dev
+
+RUN wget -qO - https://github.com/redis/hiredis/archive/refs/tags/v${HIREDIS_VERSION}.tar.gz | \
+    tar -xz -C /tmp && \
+    cmake -S /tmp/hiredis-${HIREDIS_VERSION} -B /tmp/hiredis-${HIREDIS_VERSION}/build -DCMAKE_BUILD_TYPE=RELEASE -DDISABLE_TESTS=ON && \
+    pushd /tmp/hiredis-${HIREDIS_VERSION}/build && \
+    make -j$(nproc) && make install && \
+    popd && rm -rf /tmp/hiredis-${HIREDIS_VERSION}
+
+# XGBoost
+RUN git clone -b v${XGBOOST_VERSION} --recursive https://github.com/dmlc/xgboost /tmp/xgboost-${XGBOOST_VERSION} && \
+    mkdir /tmp/xgboost-${XGBOOST_VERSION}/build && pushd /tmp/xgboost-${XGBOOST_VERSION}/build && cmake .. -DBUILD_STATIC_LIB=ON && \
+    make -j$(nproc) && make install && popd && rm -rf /tmp/xgboost-${XGBOOST_VERSION}
+
+# For building the AWS SDK.
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -y install --no-install-recommends \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        zlib1g-dev
+
+RUN wget -qO - https://github.com/aws/aws-sdk-cpp/archive/refs/tags/${AWS_SDK_VERSION}.tar.gz | \
+    tar -xz -C /tmp && \
+    pushd /tmp/aws-sdk-cpp-${AWS_SDK_VERSION} && \
+    ./prefetch_crt_dependency.sh && \
+    cmake -S . -B build -G "Unix Makefiles"       \
+        -DCMAKE_BUILD_TYPE=RELEASE                                            \
+        -DCMAKE_CXX_STANDARD=17                                               \
+        -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/clang-15                         \
+        -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/clang++-15                     \
+        -DBUILD_ONLY="s3;dynamodb;personalize-runtime;sqs;monitoring"         \
+        -DENABLE_TESTING=OFF                                                  \
+        && \
+    pushd build && \
+    make -j $(nproc) && make install && \
+    popd && popd && \
+    rm -rf /tmp/aws-sdk-cpp-${AWS_SDK_VERSION}
+
+RUN wget -qO - https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-linux-x86_64-2.11.0.tar.gz | \
+    tar -xz -C /usr/local && \
+    ldconfig
+
+# Rest of compile time dependencies
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get -y install --no-install-recommends \
+        # For Kafka.
+        librdkafka-dev \
+        # For thread-safe-lru.
+        libtbb-dev \
+        # For uap-cpp.
+        libyaml-cpp-dev \
+        # For nice stack traces.
+        libdw-dev \
+        # Delivery dependencies.
+        libjsoncpp-dev \
+        uuid-dev \
+        tzdata
+
+# Cleanup
+RUN apt-get autoremove -y && \
+    apt-get clean -y && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set the default user. Omit if you want to keep the default as root
+USER $USERNAME

@@ -1,0 +1,4 @@
+add_executable(controllers_tests controllers_tests.cc)
+target_link_libraries(controllers_tests PRIVATE drogon controllers)
+target_compile_definitions(controllers_tests PRIVATE TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+ParseAndAddDrogonTests(controllers_tests)

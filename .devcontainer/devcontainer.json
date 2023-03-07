@@ -1,0 +1,57 @@
+{
+    "name": "C++",
+
+    "build": {
+        "dockerfile": "../docker/Dockerfile.dev"
+    },
+
+    "runArgs": [
+        "--cap-add=SYS_PTRACE",
+        "--security-opt",
+        "seccomp=unconfined"
+    ],
+
+    "customizations": {
+        // Configure properties specific to VS Code.
+        "vscode": {
+            // Set *default* container specific settings.json values on container create.
+            "settings": {
+                "clangd.path": "/usr/bin/clangd-15",
+                // Needed by josetr.cmake-language-support-vscode
+                "cmake.languageSupport.dotnetPath": "/usr/bin/dotnet",
+                "files.exclude": {
+                    "**/.devcontainer": true
+                },
+                "telemetry.enableTelemetry": false
+            },                     
+            
+            // The IDs of extensions you want installed when the container is created.
+            "extensions": [
+                "streetsidesoftware.code-spell-checker",
+                "josetr.cmake-language-support-vscode",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "ms-vscode.cmake-tools",
+                "xaver.clang-format"
+            ]
+        }
+    },
+
+    "mounts": [
+        "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind",
+        // This fails with VirtioFS on Docker for Mac, so leaving it commented till a fix is available
+        // "source=${localEnv:SSH_AUTH_SOCK},target=/home/vscode/.ssh-agent.socket,type=bind,consistency=cached",
+        "source=${localWorkspaceFolderBasename}-build,target=${containerWorkspaceFolder}/build,type=volume"
+    ],
+
+    "containerEnv": {
+            "CMAKE_EXPORT_COMPILE_COMMANDS": "On"
+    },
+
+    "remoteEnv": {
+        "SSH_AUTH_SOCK": "/home/vscode/.ssh-agent.socket"
+    },
+
+    "postCreateCommand": "sudo chown vscode:vscode ${containerWorkspaceFolder}/build",
+
+    "remoteUser": "vscode"
+}
