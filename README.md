@@ -5,7 +5,7 @@ Promoted is going open! We are in the **process of publishing the source code** 
 
 We are currently porting our managed service from Golang to C++. If you are a current customer and would like source-available access of the Golang implementation, please email Andrew.
 
-The following pieces of delivery are still in the progress of being ported and will be shared when they are ready:
+Note that this project still has some private dependencies that we need to share before it will build properly. As well, the following pieces of delivery are still in the progress of being ported and will be shared when they are ready:
 - Predictors
 - Blender
 
